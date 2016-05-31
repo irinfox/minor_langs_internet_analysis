@@ -35,7 +35,7 @@ def main(arguments):
         parse_all_htmls(arguments.web_folder)
 
     if arguments.get_connections:
-        lang_lang, lang_lang_dom = get_connections('links_from_htmls', True)
+        lang_lang, lang_lang_dom = get_connections('links_from_htmls', arguments.url_list_folder, True)
 
         for key, val in lang_lang.items():
             print(key, val, sep=' -- ')
@@ -177,8 +177,7 @@ def unify_domain(domain):
     return re.sub('www\.', '', upd_domain)
 
 
-def get_lang_sites():
-    url_list_folder = '../site/static/files/url_lists'
+def get_lang_sites(url_list_folder):
     lang_sites = dict()
     for lang_dir in os.listdir(url_list_folder):
         if lang_dir.endswith('.zip'):
@@ -194,13 +193,13 @@ def get_lang_sites():
     return lang_sites
 
 
-def get_connections(dirname, debug_to_file=False):
+def get_connections(dirname, url_list_folder, debug_to_file=False):
     lang_lang_connection = dict()
     lang_lang_with_domains = defaultdict(list)
-    code_lang_mapping, lang_code = get_code_lang_mapping('../aux_files/langs_all_info.csv')
+    code_lang_mapping, lang_code = get_code_lang_mapping('data/langs_all_info_merged.tsv')
     for filename in glob(os.path.join(dirname, '*.json')):
         lang = os.path.basename(filename).split('_')[0]
-        lang_site_dict = get_lang_sites()
+        lang_site_dict = get_lang_sites(url_list_folder)
         with open(filename) as fd:
             lang_dict = dict()
             try:
@@ -253,7 +252,7 @@ def get_code_lang_mapping(lang_info_file):
     lang_code = dict()
     code_lang = dict()
     for row in lang_info_data:
-        language = row['language'].decode('utf-8')
+        language = row['lang_ru'].decode('utf-8')
         code = row['iso_code'].decode('utf-8')
         code_lang[code] = language
         lang_code[language] = code
@@ -349,7 +348,7 @@ def process_links_seprately_and_draw_small_graphs(lang_to_lang_dict, langs, grap
                 lang_graph[language]['nodes'].add(lang_tuple[0])
                 lang_graph[language]['nodes'].add(lang_tuple[1])
 
-    code_lang, lang_code = get_code_lang_mapping('../aux_files/langs_all_info.csv')
+    code_lang, lang_code = get_code_lang_mapping('data/langs_all_info_merged.tsv')
     for language, graph_data in lang_graph.items():
         draw_graph(graph_data['nodes'], graph_data['edges'], graphs_dir, lang_code[language])
 
@@ -366,7 +365,7 @@ def prepare_data_for_domain_graphs(lang_to_lang_with_domains, langs, graphs_dir)
                     domain_graph[language]['nodes'].add(domain_tuple[0])
                     domain_graph[language]['nodes'].add(domain_tuple[1])
 
-    code_lang, lang_code = get_code_lang_mapping('../aux_files/langs_all_info.csv')
+    code_lang, lang_code = get_code_lang_mapping('data/langs_all_info_merged.tsv')
     for language, graph_data in domain_graph.items():
         if graph_data['nodes']:
             draw_graph(graph_data['nodes'], graph_data['edges'], graphs_dir, lang_code[language])
@@ -381,5 +380,8 @@ if __name__ == "__main__":
                         help="general folder with folders with langs with jsons: web/ady/htmls/*")
     parser.add_argument("-c", dest='get_connections', required=False, action="store_true",
                         help="get connections, draw graphs and save them to folder link_graphs")
+    parser.add_argument("-u", dest="url_list_folder", required=True, action="store",
+                        help="folder with url_lists, where we shall find url_type1.txt:"
+                             " url_lists/<lang>_url_lists/url_type1.txt")
     args = parser.parse_args()
     main(args)
