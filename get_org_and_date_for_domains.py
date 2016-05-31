@@ -21,11 +21,9 @@ def main(arguments):
         print('lang', 'domain', 'creation_date', 'registrar', 'name', 'org', 'country', 'city', 'address', sep='\t')
 
     if arguments.url_lists_folder:
-        # process_url_lists('../site/static/files/url_lists')
         process_url_lists(arguments.url_lists_folder)
 
     if arguments.ambig_domains_folder:
-        # process_ambig_domains_folder('../yandex_api/ambig_domains')
         process_ambig_domains_folder(arguments.ambig_domains_folder)
 
     if arguments.join_files:
@@ -46,15 +44,15 @@ def main(arguments):
 
 
 def print_whois_info(lang, domainlist, start, counter):
-    # некоторые пояснения про whois-поля: http://howtointernet.net/dnsrecords.html
-    # или тут: https://vdsinside.com/en/company/posts/working-with-whois-service.html
+    # some info about whois-fields: http://howtointernet.net/dnsrecords.html
+    # and here: https://vdsinside.com/en/company/posts/working-with-whois-service.html
     for domain in domainlist:
         try:
             wh = whois.whois(domain.strip())
         except:
             print(lang, domain, 'unknown', 'unknown', 'unknown', 'unknown', sep='\t')
             continue
-        # whois разрешает 30 запросов в минуту
+        # whois allows 30 queries a minute
         if counter == 30 and (datetime.now() - start).seconds < 60:
             time.sleep(36000 - (datetime.now() - start).seconds)
             start = datetime.now()
@@ -75,7 +73,7 @@ def get_addr(wh):
 
 def get_creation_date(wh):
     if isinstance(wh.creation_date, list):
-        # если даты две, то вторая дата точнее
+        # if whois returns two dates, the second is more precise
         return wh.creation_date[1]
     elif wh.creation_date:
         return wh.creation_date
@@ -87,7 +85,6 @@ def get_creation_date(wh):
                 return None
 
 
-# через кого был зарегистрирован домен
 def get_registrar(wh):
     if isinstance(wh.registrar, list):
         registrars = list()
@@ -104,7 +101,7 @@ def get_registrar(wh):
         return wh.registrar
 
 
-# имя зарегистрировавшего (если человек, а не организация)
+# name of person (if registrar is not organization)
 def get_registrant_name(wh):
     if wh.name:
         return wh.name

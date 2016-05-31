@@ -107,8 +107,8 @@ def get_links_to_other_sites(path, language):
         from_link = os.path.basename(filename).replace('_', '/')
         from_domain = '/'.join(from_link.split('/')[:3])
 
-        # с именами файлов иногда бывает беда и выскакивает ошибка surrogates not allowed,
-        #  которая проявляется только при печати. эта магия призвана сделать автозамену этих плохих символов
+        # sometimes with html-filenames we can get an error "surrogate not allowe"
+        # it appears only at printing stage; thus we try to print and when error occurs perform bad symbols changing
         try:
             print(from_link.encode('utf-8'), file=stderr)
         except UnicodeEncodeError:
@@ -119,7 +119,6 @@ def get_links_to_other_sites(path, language):
         with open(filename) as html_doc:
             try:
                 soup = BeautifulSoup(html_doc, "lxml")
-            # нужен конкретный эксепт
             except UnicodeDecodeError:
                 with open(filename, encoding='iso-8859-1') as html_doc_upd:
                     soup = BeautifulSoup(html_doc_upd, "lxml")
@@ -132,18 +131,15 @@ def get_links_to_other_sites(path, language):
                         links_from_lang[from_domain][from_link][cur_link_dom] = dict()
                     links_from_lang[from_domain][from_link][cur_link_dom][cur_link] = \
                         links_from_lang[from_domain][from_link][cur_link_dom].get(cur_link, 0) + 1
-                    # print(cur_domain, cur_link)
-                    # print(filename, link.get('href'))
         url_counter += 1
 
-        # проверка размера - долгая операция, поэтому будем проверять каждые 2К файлов
+        # size check is time consuming, thus we will check dict size only each 2000 of processec files
         if url_counter >= 2000:
             if total_size(links_from_lang) / 1024 / 1024 >= 99:
                 dump_links_from_lang(language, links_from_lang, part)
                 links_from_lang = defaultdict(dict)
                 part += 1
             url_counter = 0
-    # оставшийся массив ссылок
     dump_links_from_lang(language, links_from_lang, part)
     return links_from_lang
 
@@ -198,7 +194,6 @@ def get_lang_sites():
     return lang_sites
 
 
-# теперь будет работать с json и его надо переписать
 def get_connections(dirname, debug_to_file=False):
     lang_lang_connection = dict()
     lang_lang_with_domains = defaultdict(list)
@@ -252,7 +247,6 @@ def get_code_lang_mapping(lang_info_file):
     with open(lang_info_file, encoding="utf-8") as fd:
         text = fd.read()
 
-    # воспринимает их как комментарии и выдаёт ошибку по кол-ву столбцов
     newtext = text.replace('#', '@')
     lang_info_data = np.genfromtxt(BytesIO(newtext.encode('utf-8')), names=True,
                                    delimiter='\t', dtype=None)
@@ -276,7 +270,7 @@ def draw_graph(nodes, edges, graphs_dir, default_lang='all'):
             lang_graph.add_edge(edge[0], edge[1], weight=float(edges[edge]), label=str(edges[edge]))
 
     # print graph info in stdout
-    # коэффициент центральности
+    # degree centrality
     print('-----------------\n\n')
     print(default_lang)
     print(nx.info(lang_graph))
@@ -290,23 +284,16 @@ def draw_graph(nodes, edges, graphs_dir, default_lang='all'):
         max_dc_list = []
     # https://ru.wikipedia.org/wiki/%D0%9A%D0%BE%D0%BC%D0%BF%D0%BB%D0%B5%D0%BA%D1%81%D0%BD%D1%8B%D0%B5_%D1%81%D0%B5%D1%82%D0%B8
     print('maxdc', str(max_dc_list), sep=': ')
-    # коэффициент ассортативности - как связаны "звёзды"
+    # assortativity coef
     AC = nx.degree_assortativity_coefficient(lang_graph)
     print('AC', str(AC), sep=': ')
-    if nx.is_strongly_connected(lang_graph):
-        # максимальное расстояние между вершинами для всех пар вершин
-        print('диаметр: ', nx.diameter(lang_graph))
-        # минимальное максимальное расстояние между вершинами для всех пар вершин
-        print('радиус: ', nx.radius(lang_graph))
-    # про связность
+    # connectivity
     print("Слабо-связный граф: ", nx.is_weakly_connected(lang_graph))
     print("количество слабосвязанных компонент: ", nx.number_weakly_connected_components(lang_graph))
     print("Сильно-связный граф: ", nx.is_strongly_connected(lang_graph))
     print("количество сильносвязанных компонент: ", nx.number_strongly_connected_components(lang_graph))
     print("рекурсивные? компоненты: ", nx.number_attracting_components(lang_graph))
-    # наименьшее число вершин, удаление которых приводит к несвязному или тривиальному графу.
     print("число вершинной связности: ", nx.node_connectivity(lang_graph))
-    # наименьшее количество ребер, удаление которых приводит к несвязному или тривиальному графу.
     print("число рёберной связности: ", nx.edge_connectivity(lang_graph))
     # other info
     print("average degree connectivity: ", nx.average_degree_connectivity(lang_graph))

@@ -1,15 +1,8 @@
 from urllib import request
 from urllib import parse
 from bs4 import BeautifulSoup
-import json
-
-# link: https://ru.wikipedia.org/wiki/Википедия:Список_Википедий
 
 
-# с помощью wikipedia api
-
-
-# pageid=26799
 def get_json_from_wiki():
     concrete_page = 'Википедия:Список_Википедий'
     quote_page = parse.quote(concrete_page, encoding='utf-8')

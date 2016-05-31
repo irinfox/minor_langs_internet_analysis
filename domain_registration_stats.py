@@ -10,10 +10,6 @@ import sys
 sys.path.append('../')
 from util import read_auxiliary_file, create_dir
 
-# reg_file = read_auxiliary_file('domains_registration_info_joined_upd.tsv')
-reg_file = read_auxiliary_file('domains_registration_info_with_ip.tsv')
-# reg_file = read_auxiliary_file('reg_graphs_and_stats/domains_registration_info_joined.tsv')
-
 ORG_TYPES = {
     'mass_media': ['media', 'radio', 'newspaper', 'jyrnal', 'gazet', 'press', 'television', 'GUP RB "Bashkortostan"',
                    'Rossiya Segodnya', 'RIK "Iskra"', 'Inforos Co., Ltd'],
@@ -28,15 +24,6 @@ ORG_TYPES = {
     'blogs': ['LiveJournal, Inc.', 'Google Inc.'],
     'art': ['library', 'teatr', '"TGAT im.G.Kamala"', 'kulturniy center']
 }
-
-# СМИ: media, radio, newspaper, jyrnal, gazet, press
-# издательства: publishing, izdatelstvo, izdatelskiy, editorial
-# образование: state university,
-# гос: ministry (of|for), administration of, ministerstvo, Administratsiya
-# Regionalnaya Nacianalno-kulturnaya avtonomia tatar Nigegorodskoj oblasti
-# Municipalnoe avtonomnoe uchrezhdenie "Kazanskij gorodskoj obshchestvennyj centr"
-# ростелеком (тоже hoster?): rostelekom
-# art: "Finno-ugorskiy kulturniy center Rossiyskoy Federacii"
 
 LANG_COLORS = {
     'Башкирский': 'orange',
@@ -102,18 +89,44 @@ LANG_CAPITAL = {
 }
 
 
-# общая вспомогательная функция
+def main():
+    reg_file = read_auxiliary_file('data/domains_registration_info_with_ip.tsv')
+
+    date_stats = get_date_stats(reg_file)
+    draw_date_stats(date_stats)
+
+    city_stats = get_city_stats(reg_file)
+    draw_city_per_lang(city_stats, True, True)
+    draw_city_per_lang(city_stats, True)
+    draw_city_per_lang(city_stats)
+    draw_cities_overall(city_stats, True)
+    draw_cities_overall(city_stats)
+    # for city, freq in sorted(city_stats['overall_private'].items(), key=operator.itemgetter(1), reverse=True):
+    #     print(city, freq, sep='\t')
+
+
+    reg_stats = get_registers_stats(reg_file)
+    # print_registers_stats(reg_stats)
+    draw_registers_stats(reg_stats)
+    draw_registers_stats_separately(reg_stats)
+
+    # for key, val in sorted(count_major_domains(reg_file).items(), key=operator.itemgetter(1), reverse=True):
+    #     if val == 1:
+    #         continue
+    #     print(key, val, sep='\t')
+
+
+# general function
 def get_code_lang_mapping(lang_info_data):
     lang_code = dict()
     for row in lang_info_data:
-        lang = row['language'].decode('utf-8')
+        lang = row['lang_ru'].decode('utf-8')
         code = row['iso_code'].decode('utf-8')
         lang_code[code] = lang
     return lang_code
 
 
-# вспомогательная функция, чтобы посмотреть все домены первого-второго уровня
-# и принять решения по повторяющимся
+# auxiliary function to look at frequencies of first and second level domains
 def count_major_domains(reg_data):
     dom_stats = dict()
     for row in reg_data:
@@ -124,7 +137,7 @@ def count_major_domains(reg_data):
 
 
 #########################
-# кто зарегистрировал   #
+# who registered        #
 #########################
 def get_registers_stats(reg_data):
     lang_stats = defaultdict(dict)
@@ -179,7 +192,7 @@ def print_registers_stats(lang_stats):
         # print('\t', stat)
 
 
-# общий график с регистрировавшими частниками и организациями
+# general graph with private and organizations registrations
 def draw_registers_stats(lang_stats):
     langs = list()
     private = list()
@@ -201,13 +214,13 @@ def draw_registers_stats(lang_stats):
     rects2 = ax.bar(ind, org, width, color='#0B614B')
     rects3 = ax.bar(ind + width, unknown, width, color='#848484')
 
-    # добавляем надписи
+    # add labels
     ax.set_ylabel('Количество сайтов', fontsize=22)
     ttl = ax.set_title('Распределение по регистрировавшим домены', fontsize=30)
     ax.set_xticks(ind + width/2)
     ax.set_xticklabels(langs, rotation=90, fontsize=16)
 
-    # красиво располагаем подписи на графике
+    # arrange labels
     ttl.set_position([.5, 1.02])
     plt.subplots_adjust(bottom=0.35)
     plt.axis([-1, len(langs), 0, max(private + org + unknown) + 5])
@@ -216,7 +229,7 @@ def draw_registers_stats(lang_stats):
     plt.show()
 
 
-# два графика: на одном те, где больше частников, на другом те, где больше организаций
+# two graphs: one for major private regs, another for major org regs
 def draw_registers_stats_separately(lang_stats):
     langs = defaultdict(list)
     private = defaultdict(list)
@@ -247,13 +260,13 @@ def draw_registers_stats_separately(lang_stats):
         rects2 = ax.bar(ind, org[reg_type], width, color='#0B614B')
         rects3 = ax.bar(ind + width, unknown[reg_type], width, color='#848484')
 
-        # добавляем надписи
+        # add labels
         ax.set_ylabel('Количество сайтов', fontsize=22)
         ttl = ax.set_title('Распределение по регистрировавшим домены', fontsize=30)
         ax.set_xticks(ind + width/2)
         ax.set_xticklabels(langs[reg_type], rotation=90, fontsize=16)
 
-        # красиво располагаем подписи на графике
+        # arrange labels
         ttl.set_position([.5, 1.02])
         plt.subplots_adjust(bottom=0.35)
         plt.axis([-1, len(langs[reg_type]), 0, max(private[reg_type] + org[reg_type] + unknown[reg_type]) + 5])
@@ -277,9 +290,11 @@ MONTH_TO_TEXT = {
 }
 
 #########################
-# когда зарегистрировал #
+# when registered       #
 #########################
-def get_date_stats(reg_data):
+
+
+def get_date_stats(reg_data, by_month=False):
     date_stats = defaultdict(dict)
     for row in reg_data:
         lang = row['lang'].decode('utf-8')
@@ -287,14 +302,15 @@ def get_date_stats(reg_data):
         if date_str in ['None', 'unknown']:
             continue
         date = datetime.strptime(date_str.split(' ')[0], "%Y-%m-%d")
-        if date.year == 2012:
-            key_str = date.month
-            date_stats[lang][key_str] = date_stats[lang].get(key_str, 0) + 1
-            date_stats['overall'][key_str] = date_stats['overall'].get(key_str, 0) + 1
-            add_info_into_right_reg_type(row, key_str, date_stats)
-        # date_stats[lang][date.year] = date_stats[lang].get(date.year, 0) + 1
-        # date_stats['overall'][date.year] = date_stats['overall'].get(date.year, 0) + 1
-        # add_info_into_right_reg_type(row, date.year, date_stats)
+        key_str = date.year
+        if by_month:
+            if date.year == 2012:
+                key_str = date.month
+            else:
+                continue
+        date_stats[lang][key_str] = date_stats[lang].get(key_str, 0) + 1
+        date_stats['overall'][key_str] = date_stats['overall'].get(key_str, 0) + 1
+        add_info_into_right_reg_type(row, key_str, date_stats)
 
     return date_stats
 
@@ -408,8 +424,6 @@ def add_info_into_right_reg_type(row, data, res_dict):
     org = row['org'].decode('utf-8')
     if person != 'None' and org == 'None':
         res_dict['overall_private'][data] = res_dict['overall_private'].get(data, 0) + 1
-    # информация о том, что домен зарегистрирован хостингом, не обязательно говорит о том,
-    #  что регистрировавший организация
     elif person == 'None' and org == 'None':
         res_dict['overall_none'][data] = res_dict['overall_none'].get(data, 0) + 1
     elif org != 'None':
@@ -424,7 +438,7 @@ def add_info_into_right_reg_type(row, data, res_dict):
 
 
 #########################
-# где зарегистрировали  #
+# where registered      #
 #########################
 def get_city_stats(reg_data):
     city_stats = defaultdict(dict)
@@ -450,12 +464,12 @@ def draw_city_per_lang(city_stats, with_none=False, log_scale=False):
     spb = list()
     other_cities = list()
     nones = list()
-    langs_info = read_auxiliary_file('../aux_files/langs_all_info.csv')
+    langs_info = read_auxiliary_file('data/langs_all_info_merged.tsv')
     code_to_lang = get_code_lang_mapping(langs_info)
     lang_stats_ru = dict([(code_to_lang[lang], val) for lang, val in city_stats.items()
                           if '_' not in lang and lang != 'overall'])
     for lang, stat in sorted(lang_stats_ru.items()):
-        # не рисуем языки, где только столбик с неизвестно
+        # don't draw langs with none bar
         if 'none' in stat and len(stat) == 1:
             continue
         else:
@@ -490,12 +504,12 @@ def draw_city_per_lang(city_stats, with_none=False, log_scale=False):
         p4 = plt.bar(ind, nones, width, color='white',
                      bottom=[i + j + k + z for i, j, k, z in zip(other_cities, ru_capital, region_capitals, spb)])
 
-    # добавляем надписи
+    # add labels
     plt.ylabel('Количество сайтов', fontsize=22)
     ttl = plt.title('Распределение сайтов по городам', fontsize=30)
     plt.xticks(ind + width / 2., langs, rotation=90, fontsize=16)
 
-    # красиво располагаем подписи на графике
+    # arrange labels
     ttl.set_position([.5, 1.02])
     plt.subplots_adjust(bottom=0.35)
     if with_none:
@@ -503,9 +517,6 @@ def draw_city_per_lang(city_stats, with_none=False, log_scale=False):
     else:
         max_y = max(region_capitals) + max(ru_capital) + max(other_cities)
     plt.axis([-1, len(langs), 0, max_y + 5])
-
-    # if log_scale:
-    #     plt.yscale('log', )
 
     if with_none:
         plt.legend((p3[0], p5[0], p2[0], p1[0], p4[0]), ('Столицы регионов', 'Санкт-Петербург', 'Москва', 'Другие города', 'Неизвестно'))
@@ -547,7 +558,7 @@ def draw_cities_overall(city_stats, with_none=False):
     if with_none:
         rects4 = ax.bar(ind + 2 * width, nones, width, color='white')
 
-    # добавляем надписи
+    # add labels
     ax.set_ylabel('Количество сайтов', fontsize=22)
     ttl = ax.set_title('Распределение сайтов по городам', fontsize=30)
     if with_none:
@@ -557,7 +568,7 @@ def draw_cities_overall(city_stats, with_none=False):
         # ax.set_xticks(ind + width)
     ax.set_xticklabels(labels, fontsize=16)
 
-    # красиво располагаем подписи на графике
+    # arrange labels
     ttl.set_position([.5, 1.02])
     # plt.subplots_adjust(bottom=0.35)
     if with_none:
@@ -590,26 +601,6 @@ def autolabel(rects, ax):
                 ha='center', va='bottom')
     return
 
-# date_stats = get_date_stats(reg_file)
-# draw_date_stats(date_stats)
 
-city_stats = get_city_stats(reg_file)
-# print(city_stats['bak'])
-# draw_city_per_lang(city_stats, True, True)
-# draw_city_per_lang(city_stats, True)
-# draw_city_per_lang(city_stats)
-# draw_cities_overall(city_stats, True)
-# draw_cities_overall(city_stats)
-# for city, freq in sorted(city_stats['overall_private'].items(), key=operator.itemgetter(1), reverse=True):
-#     print(city, freq, sep='\t')
-
-
-# reg_stats = get_registers_stats(reg_file)
-# print_registers_stats(reg_stats)
-# draw_registers_stats(reg_stats)
-# draw_registers_stats_separately(reg_stats)
-
-# for key, val in sorted(count_major_domains(reg_file).items(), key=operator.itemgetter(1), reverse=True):
-#     if val == 1:
-#         continue
-#     print(key, val, sep='\t')
+if __name__ == "__main__":
+    main()

@@ -13,26 +13,9 @@ sys.path.append('../')
 from util import get_tokens, read_file_to_list
 
 
-# Фичи для маш. обучения и дальнейшего изучения
-# Из других файлов:
-# 1. число говорящих +
-# 2. данные по региону (экономическое благополучие и интернетизированность) +
-# 3. Википедия
-#   (число статей, +
-#    размер сообщества = число активных админов, +
-#    как быстро википедия растёт), - (не надо)
-# 4. число сообществ ВК (тут надо проверять, что там хоть один текст на миноритарном языке есть, наверное) +
-
-# По выкачанному из Интернета:
-# 1. Отношение доменов первого типа к остальным. +
-# 2. Медиана слов на страницу на сайте. +
-# 3. Разбавленность интересующего нас языка русским. (в токенах) +
-# 4. Жанры сайтов. (каких жанров бывают, какие жанровые слоты заполнены сайтами на миноритарном языке) TODO
-# 5. Тематика сайтов (классифицировать и кластеризовать тексты по тематике) TODO
-
-# Дополнительно:
-# думаю, что будет нужна языковая группа (нужен будет маппинг в циферки) +
-
+# Counts features for data analysis, using internet text collections
+# same as here: http://web-corpora.net/minorlangs/download
+# although with russian and trash text in the jsons
 
 class LangFeatures(object):
     def __init__(self, lang, lang_dir, url_type1_file=None, aux_stats=None):
@@ -40,22 +23,23 @@ class LangFeatures(object):
         self.json_dir = lang_dir
         self.domains_file = url_type1_file
         self.aux_info = aux_stats
-        # сколько доменов
+        # web-sites amount
         self.domains = list()
+        # web-sites in lang amount
         self.type1_domains = list()
-        # сколько конкретных страниц
+        # web-pages amount
         self.url_amount = 0
-        # сколько токенов на русском и малом языке
+        # tokens in each lang (russian, minor lang, trash)
         self.tokens_amount = dict()
-        # медиана слов на страницу сайта
+        # tokens per page - for token median feature
         self.tokens_per_page = dict()
         self.token_median = 0
 
-        # Все фичи (можно списком с фиксированными значениями)
+        # All features in one dict
         self.features = dict()
         self.feature_list = list()
 
-        # посчитать посайтно
+        # tokens, web-pages and tokens per pages per each lang and web-site separately
         self.site_urls = dict()
         self.site_tokens = dict()
         self.site_tokens_per_page = defaultdict(list)
@@ -84,8 +68,7 @@ class LangFeatures(object):
                         jsontext = ""
                         continue
                     domain = self.unify_domain(jsonpage['domain'])
-                    # считаем только те страницы и домены,
-                    #  на которых есть хоть один текст на нашем языке
+                    # count only pages that have no less than one token in minor language
                     if self.is_good_page(jsonpage):
                         # count domains
                         if domain not in self.domains:
@@ -107,14 +90,11 @@ class LangFeatures(object):
                         self.count_tokens_for_text(jsonpage)
                     jsontext = ""
 
-    # разбавленность текста русским
-    # (сколько текста русского, а сколько нерусского - в токенах)
     def count_tokens_for_text(self, jsonpage):
         """
-        Токенизирует каждый текст на странице,
-        записывает в словарь токенов, сколько токенов в тексте на каждом языке
-        (русский, миноритарный, треш)
-        :param jsonpage: json одной конкретной html страницы
+        Tokenize each text on a web-page
+        write to dict amount of tokens in each lang (russain, minor, trash)
+        :param jsonpage: json-result from crawler of concrete web-page
         """
         texts = jsonpage['text']
         url = jsonpage['url']
@@ -159,16 +139,11 @@ class LangFeatures(object):
         self.features['all_domains'] = all_dom
         self.features['type1_to_all'] = round(type1_dom / all_dom, 2)
         self.features['urls'] = self.url_amount
-        # self.feature_list.extend([type1_dom, all_dom,
-        #  round(type1_dom / all_dom), 2], self.url_amount)
 
     def add_tokens_info(self):
         self.features['lang_tokens'] = self.tokens_amount[self.lang] if self.lang in self.tokens_amount else 0
         self.features['rus_tokens'] = self.tokens_amount['rus'] if 'rus' in self.tokens_amount else 0
         self.features['trash_tokens'] = self.tokens_amount['trash'] if 'trash' in self.tokens_amount else 0
-        # self.feature_list.extend([self.tokens_amount[self.lang],
-        #                           self.tokens_amount['rus'],
-        #                           self.tokens_amount['trash']])
 
     # есть ли слова на миноритарном языке или вся страница - треш
     @staticmethod
@@ -182,7 +157,7 @@ class LangFeatures(object):
                 return None
         return False
 
-    # медиана слов на страницу сайта
+    # token median per web-page
     def count_word_median(self):
         median = statistics.median(self.tokens_per_page.values())
         self.token_median = median
@@ -195,7 +170,6 @@ class LangFeatures(object):
         print("\t".join(str(v[1]) for v in sorted_feat))
 
     def print_per_site(self):
-        # print(self.site_tokens_per_page)
         for domain in self.domains:
             token_median_per_site = statistics.median(self.site_tokens_per_page[domain])
             print(self.lang, domain, self.site_urls[domain],
